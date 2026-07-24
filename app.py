@@ -1,4 +1,5 @@
 from flask_cors import CORS
+from flask_bcrypt import Bcrypt
 from flask import Flask, request , jsonify
 # from flask_bcrypt import Bcrypt
 # from flask_jwt_extended import (
@@ -15,6 +16,8 @@ import os
 # -- App setup
 app = Flask(__name__)
 CORS(app)
+
+bcrypt=Bcrypt(app)
 
 # we have made two changes, the database name variable is called dbname 
 # and we require the port 
@@ -52,15 +55,19 @@ def signup():
 
 
     landlord_name = data.get("landlord_name", "").strip()
-    password_hash = data.get("password_hash", "").strip()
+    landlord_password = data.get("landlord_password", "").strip()
     landlord_email = data.get("landlord_email", "").strip().lower()
     phone_number = data.get("phone_number", "").strip()
     account_status = data.get("account_status", "").strip()
 
 
 # This is to make sure that the user doesn't send to the backend any empty field. All fields must be filled.
-    if not all([landlord_name,password_hash,landlord_email,phone_number,account_status]):
+    if not all([landlord_name,landlord_password,landlord_email,phone_number,account_status]):
         return jsonify({"error":"All fields are required"}),400
+
+    # we hash the password before storing in database using Bcrypt
+    # decode("utf-8")-this decrypts the hashed password
+    password_hash= bcrypt.generate_password_hash(landlord_password).decode("utf-8")
 
     connection, cursor = get_db()
     try:
@@ -89,4 +96,41 @@ def signup():
     finally:
         cursor.close()
         connection.close()
+
+
+#----------Log in-------------
+@app.route("/api/signin", methods=["POST"])
+def signin():
+    data = request.get_json()
+
+    landlord_email= data.get("landlord_email", "").strip()
+    landlord_password = data.get("landlord_password", "").strip()
+
+    # makes sure all fields are required
+    if not landlord_email or not landlord_password:
+        return jsonify({"error":"Email or password  are required"}),400
+
+    connection, cursor = get_db(True)
+    try:
+        cursor.execute("SELECT * FROM landlord WHERE landlord_email= %s", (landlord_email,))
+        landlord_user = cursor.fetchone()
+        # this returns the row that matches the email and stores it in a variable called landlord_user
+
+        if not landlord_user or not bcrypt.check_password_hash(landlord_user["password_hash"],landlord_password):
+            return jsonify({"error":"Invalid credentials"}),401
+        return jsonify({
+            "message":"Login successful",
+            "landlord_user":{
+                "landlord_id":landlord_user["landlord_id"],
+                "landlord_name": landlord_user["landlord_name"],
+                "landlord_email":landlord_user["landlord_email"],
+                "phone_number":landlord_user["phone_number"]
+            }
+        }),200
+    except Exception as e:
+        print("Login Error",repr(e))
+        return jsonify({"error":"Something went wrong. Please try again."}),500
+    finally:
+        connection.close()
+
 
