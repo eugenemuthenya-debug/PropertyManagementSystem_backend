@@ -7,26 +7,43 @@ from flask import Flask, request , jsonify
 #     jwt_required,
 #     get_jwt_required,
 # )
-import pymysql
+import psycopg
+from psycopg.rows import dict_row
+# since we are already using postgresql we use this psycopg library.
 import os
 
 # -- App setup
 app = Flask(__name__)
 CORS(app)
 
+# we have made two changes, the database name variable is called dbname 
+# and we require the port 
+# sslmode = require : A connection is only established and data is allowed to move to database when everything is encrypted. 
+
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST"),
     "user": os.environ.get("DB_USER"),
     "password": os.environ.get("DB_PASSWORD"),
-    "database": os.environ.get("DB_NAME")
+    "dbname": os.environ.get("DB_NAME"),
+    "port": os.environ.get("DB_PORT"),
+    "sslmode": "require"
 }
 
 # our db helper to connect
+# **-->unpacks our DB_CONFIG dictionary
+# conn-->connection
 def get_db(dict_cursor=False):
-    conn = pymysql.connect(**DB_CONFIG)
-    if dict_cursor:
-        return conn,conn.cursor(pymysql.cursors.DictCursor)
-    return conn, conn.cursor()
+
+    try :
+        conn = psycopg.connect(**DB_CONFIG)
+        if dict_cursor:
+            cursor = conn.cursor(row_factory=dict_row)
+        else:
+            cursor = conn.cursor()
+        return conn,cursor
+    except Exception as e :
+        print("Database error:",repr(e))
+        return None,None
 
 #-----------Register/Sign Up-----------------------(this is only for the landlord)
 @app.route("/api/signup", methods=["POST"])
@@ -62,7 +79,13 @@ def signup():
         cursor.execute(sql,(landlord_name,landlord_email,password_hash,phone_number,account_status))
         connection.commit()
 
+        return jsonify({"message":"Account created successfully"})
+
     except Exception as e:
         print("Signup error:",repr(e))
         return jsonify({"error":"Something went wrong.Please try again."}),500
+
+    finally:
+        cursor.close()
+        connection.close()
 
