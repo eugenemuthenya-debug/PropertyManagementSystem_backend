@@ -65,3 +65,6 @@ def signup():
     except Exception as e:
         print("Signup error:",repr(e))
         return jsonify({"error":"Something went wrong.Please try again."}),500
+
+if __name__ == "__main__":
+    app.run()
