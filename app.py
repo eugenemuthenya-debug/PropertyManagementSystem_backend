@@ -75,11 +75,12 @@ def signup():
                             "email":landlord_email}),409
 
         # if record doesn't exist:
-        sql = "INSERT INTO landlord(landlord_name,landlord_email,password_harsh,phone_number,account_status) values(%s,%s,%s,%s,%s)"
+        sql = "INSERT INTO landlord(landlord_name,landlord_email,password_hash,phone_number,account_status) values(%s,%s,%s,%s,%s)"
         cursor.execute(sql,(landlord_name,landlord_email,password_hash,phone_number,account_status))
+
         connection.commit()
 
-        return jsonify({"message":"Account created successfully"})
+        return jsonify({"message":"Account created successfully"}),201
 
     except Exception as e:
         print("Signup error:",repr(e))
