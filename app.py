@@ -49,7 +49,7 @@ def get_db(dict_cursor=False):
         print("Database error:",repr(e))
         return None,None
 
-#-----------Register/Sign Up-----------------------(this is only for the landlord)
+#-----------Register/Sign Up-----------------------(this is only for the landlord)[Success]
 @app.route("/api/signup", methods=["POST"])
 def signup():
     data = request.get_json()
@@ -92,15 +92,19 @@ def signup():
 
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error":str(e)}),500
+        # return jsonify({"error":str(e)}),500
+        # traceback prints our entire error, where what went wrong and how it got there
+        return jsonify({
+        "error": "Something went wrong. Please try again."
+    }), 500
 
     finally:
         cursor.close()
         connection.close()
 
 
-#----------Log in-------------
-@app.route("/api/signin", methods=["POST"])
+#----------Log in-------------(Landlord)
+@app.route("/api/login", methods=["POST"])
 def signin():
     data = request.get_json()
 
@@ -129,9 +133,11 @@ def signin():
             }
         }),200
     except Exception as e:
-        print("Login Error",repr(e))
-        return jsonify({"error":"Something went wrong. Please try again."}),500
+        traceback.print_exc()
+        return jsonify({"error":str(e)}),500
+        # return jsonify({"error":"Something went wrong. Please try again."}),500
     finally:
+        cursor.close()
         connection.close()
 
 
