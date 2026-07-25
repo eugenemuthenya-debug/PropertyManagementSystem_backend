@@ -12,6 +12,7 @@ import psycopg
 from psycopg.rows import dict_row
 # since we are already using postgresql we use this psycopg library.
 import os
+import traceback
 
 # -- App setup
 app = Flask(__name__)
@@ -90,8 +91,8 @@ def signup():
         return jsonify({"message":"Account created successfully"}),201
 
     except Exception as e:
-        print("Signup error:",repr(e))
-        return jsonify({"error":"Something went wrong.Please try again."}),500
+        traceback.print_exc()
+        return jsonify({"error":str(e)}),500
 
     finally:
         cursor.close()
