@@ -196,8 +196,8 @@ def Register_user() :
 
     except Exception as e:
             traceback.print_exc()
-         # return jsonify({"error":str(e)}),500
-            return jsonify({"error":"Something went wrong. Please try again."}),500
+            return jsonify({"error":str(e)}),500
+            # return jsonify({"error":"Something went wrong. Please try again."}),500
     finally:
         connection.close()
         cursor.close()
