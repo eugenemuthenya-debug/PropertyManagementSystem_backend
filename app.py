@@ -3,9 +3,10 @@ from flask_bcrypt import Bcrypt
 from flask import Flask, request , jsonify
 # from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
-    # JWTManager,
+    JWTManager,
     create_access_token,
-    # jwt_required,
+    jwt_required,
+    get_jwt_identity
     
 )
 import psycopg
@@ -18,7 +19,8 @@ import traceback
 app = Flask(__name__)
 CORS(app)
 
-bcrypt=Bcrypt(app)
+jwt = JWTManager(app)
+bcrypt = Bcrypt(app)
 
 # OUR CONFIGS
 # app.config:app is an object and has libraries in it such as config and we can store our data in there. In our case we are storing jwt_secret_key, this is a key which will be assigned a value
