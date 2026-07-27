@@ -3,10 +3,10 @@ from flask_bcrypt import Bcrypt
 from flask import Flask, request , jsonify
 # from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
-    JWTManager,
+    # JWTManager,
     create_access_token,
-    jwt_required,
-    get_jwt_required,
+    # jwt_required,
+    # get_jwt_required,
 )
 import psycopg
 from psycopg.rows import dict_row
