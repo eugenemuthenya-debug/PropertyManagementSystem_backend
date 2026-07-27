@@ -151,10 +151,57 @@ def signin():
         }),200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error":str(e)}),500
-        # return jsonify({"error":"Something went wrong. Please try again."}),500
+        # return jsonify({"error":str(e)}),500
+        return jsonify({"error":"Something went wrong. Please try again."}),500
     finally:
         cursor.close()
         connection.close()
+
+
+# -----------Registering users------------------
+@app.route("/api/Register_user", methods=["POST"])
+@jwt_required()
+
+def Register_user() :
+
+    # this gets the landlord_id from the access token
+
+    landlord_id= get_jwt_identity()
+
+    # Data for registering users
+    data = request.get_json()
+    customer_name = data.get("customer_name")
+    customer_email = data.get("customer_email")
+    customer_phone_number =data.get("customer_phone_number")
+    unit_number = data.get("unit_number") 
+    activity_status = data.get("activity_status")
+
+    # MAKE SURE ALL FIELDS ARE ENTERED
+    if not all([customer_name,customer_email,customer_phone_number,unit_number,activity_status]):
+        return jsonify({"error":"All fields are required ."}),400
+
+    connection, cursor= get_db()
+
+    # CHECK IF USER ALREADY EXIST
+    try:
+        cursor.execute("SELECT  customer_id FROM customers WHERE customer_email = %s OR customer_name = %s ",
+                       (customer_email,customer_name))
+        if cursor.fetchone():
+            return jsonify({"error":"Email or Username already exists",
+                            "customer_email":customer_email}),409
+        sql = "INSERT INTO customers(landlord_id,customer_name, customer_email,customer_phone_number,unit_number,activity_status) VALUES(%s,%s,%s,%s,%s,%s)"
+        cursor.execute(sql,(landlord_id,customer_name,customer_email,customer_phone_number,unit_number,activity_status))
+        connection.commit()
+        return jsonify({"message":"Tenant registered successfully. Verification code sent "})
+
+    except Exception as e:
+            traceback.print_exc()
+         # return jsonify({"error":str(e)}),500
+            return jsonify({"error":"Something went wrong. Please try again."}),500
+    finally:
+        connection.close()
+        cursor.close()
+        
+
 
 
