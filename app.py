@@ -6,7 +6,7 @@ from flask_jwt_extended import (
     # JWTManager,
     create_access_token,
     # jwt_required,
-    # get_jwt_required,
+    
 )
 import psycopg
 from psycopg.rows import dict_row
@@ -149,8 +149,8 @@ def signin():
         }),200
     except Exception as e:
         traceback.print_exc()
-        # return jsonify({"error":str(e)}),500
-        return jsonify({"error":"Something went wrong. Please try again."}),500
+        return jsonify({"error":str(e)}),500
+        # return jsonify({"error":"Something went wrong. Please try again."}),500
     finally:
         cursor.close()
         connection.close()
