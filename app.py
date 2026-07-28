@@ -1,20 +1,33 @@
 from flask_cors import CORS
+from flask_bcrypt import Bcrypt
 from flask import Flask, request , jsonify
 # from flask_bcrypt import Bcrypt
-# from flask_jwt_extended import (
-#     JWTManager,
-#     create_access_token,
-#     jwt_required,
-#     get_jwt_required,
-# )
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    jwt_required,
+    get_jwt_identity
+    
+)
 import psycopg
 from psycopg.rows import dict_row
 # since we are already using postgresql we use this psycopg library.
 import os
+import traceback
 
 # -- App setup
 app = Flask(__name__)
 CORS(app)
+
+jwt = JWTManager(app)
+bcrypt = Bcrypt(app)
+
+# OUR CONFIGS
+# app.config:app is an object and has libraries in it such as config and we can store our data in there. In our case we are storing jwt_secret_key, this is a key which will be assigned a value
+# os.environ:python talks to our os to get environment variables and for us it is in render.
+# .get():we use the function to prevent crashing of the app when we want to get the value rather than the key , value pair itself.
+# We never code this in our code for security purposes.
+app.config["JWT_SECRET_KEY"]=os.environ.get("JWT_SECRET_KEY")
 
 # we have made two changes, the database name variable is called dbname 
 # and we require the port 
@@ -45,22 +58,26 @@ def get_db(dict_cursor=False):
         print("Database error:",repr(e))
         return None,None
 
-#-----------Register/Sign Up-----------------------(this is only for the landlord)
+#-----------Register/Sign Up-----------------------(this is only for the landlord)[Success]
 @app.route("/api/signup", methods=["POST"])
 def signup():
     data = request.get_json()
 
 
     landlord_name = data.get("landlord_name", "").strip()
-    password_hash = data.get("password_hash", "").strip()
+    landlord_password = data.get("landlord_password", "").strip()
     landlord_email = data.get("landlord_email", "").strip().lower()
     phone_number = data.get("phone_number", "").strip()
-    account_status = data.get("account_status", "").strip()
+    account_type = data.get("account_type", "").strip()
 
 
 # This is to make sure that the user doesn't send to the backend any empty field. All fields must be filled.
-    if not all([landlord_name,password_hash,landlord_email,phone_number,account_status]):
+    if not all([landlord_name,landlord_password,landlord_email,phone_number,account_type]):
         return jsonify({"error":"All fields are required"}),400
+
+    # we hash the password before storing in database using Bcrypt
+    # decode("utf-8")-this decrypts the hashed password
+    password_hash= bcrypt.generate_password_hash(landlord_password).decode("utf-8")
 
     connection, cursor = get_db()
     try:
@@ -76,17 +93,112 @@ def signup():
 
         # if record doesn't exist:
         sql = "INSERT INTO landlord(landlord_name,landlord_email,password_hash,phone_number,account_status) values(%s,%s,%s,%s,%s)"
-        cursor.execute(sql,(landlord_name,landlord_email,password_hash,phone_number,account_status))
+        cursor.execute(sql,(landlord_name,landlord_email,password_hash,phone_number,account_type))
 
         connection.commit()
 
         return jsonify({"message":"Account created successfully"}),201
 
     except Exception as e:
-        print("Signup error:",repr(e))
-        return jsonify({"error":"Something went wrong.Please try again."}),500
+        traceback.print_exc()
+        # return jsonify({"error":str(e)}),500
+        # traceback prints our entire error, where what went wrong and how it got there
+        return jsonify({
+        "error": "Something went wrong. Please try again."
+    }), 500
 
     finally:
         cursor.close()
         connection.close()
 
+
+#----------Log in-------------(Landlord)[Success]
+@app.route("/api/login", methods=["POST"])
+def signin():
+    data = request.get_json()
+
+   
+
+
+
+    landlord_email= data.get("landlord_email", "").strip()
+    landlord_password = data.get("landlord_password", "").strip()
+
+    # makes sure all fields are required
+    if not landlord_email or not landlord_password:
+        return jsonify({"error":"Email or password  are required"}),400
+
+    connection, cursor = get_db(True)
+    try:
+        cursor.execute("SELECT * FROM landlord WHERE landlord_email= %s", (landlord_email,))
+        landlord_user = cursor.fetchone()
+        # this returns the row that matches the email and stores it in a variable called landlord_user
+
+        if not landlord_user or not bcrypt.check_password_hash(landlord_user["password_hash"],landlord_password):
+            return jsonify({"error":"Invalid credentials"}),401
+
+        # we wanna create our access token but they will be uniquely identified via landlord_id
+        access_token = create_access_token(identity=str(landlord_user["landlord_id"]))
+        return jsonify({
+            "message":"Login successful",
+            "landlord_user":{
+                "landlord_id":landlord_user["landlord_id"],
+                "landlord_name": landlord_user["landlord_name"],
+                "landlord_email":landlord_user["landlord_email"],
+                "phone_number":landlord_user["phone_number"],
+                "access_token":access_token
+            }
+        }),200
+    except Exception as e:
+        traceback.print_exc()
+        # return jsonify({"error":str(e)}),500
+        return jsonify({"error":"Something went wrong. Please try again."}),500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# -----------Registering users------------------
+@app.route("/api/Register_user", methods=["POST"])
+@jwt_required()
+
+def Register_user() :
+
+    # this gets the landlord_id from the access token
+
+    landlord_id= get_jwt_identity()
+
+    # Data for registering users
+    data = request.get_json()
+    customer_name = data.get("customer_name")
+    customer_email = data.get("customer_email")
+    customer_phone_number =data.get("customer_phone_number")
+    unit_number = data.get("unit_number") 
+    activity_status = data.get("activity_status")
+
+    # MAKE SURE ALL FIELDS ARE ENTERED
+    if not all([customer_name,customer_email,customer_phone_number,unit_number,activity_status]):
+        return jsonify({"error":"All fields are required ."}),400
+
+    connection, cursor= get_db()
+
+    # CHECK IF USER ALREADY EXIST
+    try:
+        cursor.execute("SELECT  customer_id FROM customers WHERE customer_email = %s OR customer_name = %s ",
+                       (customer_email,customer_name))
+        if cursor.fetchone():
+            return jsonify({"error":"Email or Username already exists",
+                            "customer_email":customer_email}),409
+        sql = "INSERT INTO customers(landlord_id,customer_name, customer_email,customer_phone_number,unit_number,activity_status) VALUES(%s,%s,%s,%s,%s,%s)"
+        cursor.execute(sql,(landlord_id,customer_name,customer_email,customer_phone_number,unit_number,activity_status))
+        connection.commit()
+        return jsonify({"message":"Tenant registered successfully. Verification code sent "})
+
+    except Exception as e:
+            traceback.print_exc()
+            return jsonify({"error":str(e)}),500
+            # return jsonify({"error":"Something went wrong. Please try again."}),500
+    finally:
+        connection.close()
+        cursor.close()
+        
