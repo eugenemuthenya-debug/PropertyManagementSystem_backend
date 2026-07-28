@@ -68,11 +68,11 @@ def signup():
     landlord_password = data.get("landlord_password", "").strip()
     landlord_email = data.get("landlord_email", "").strip().lower()
     phone_number = data.get("phone_number", "").strip()
-    account_status = data.get("account_status", "").strip()
+    account_type = data.get("account_type", "").strip()
 
 
 # This is to make sure that the user doesn't send to the backend any empty field. All fields must be filled.
-    if not all([landlord_name,landlord_password,landlord_email,phone_number,account_status]):
+    if not all([landlord_name,landlord_password,landlord_email,phone_number,account_type]):
         return jsonify({"error":"All fields are required"}),400
 
     # we hash the password before storing in database using Bcrypt
@@ -93,7 +93,7 @@ def signup():
 
         # if record doesn't exist:
         sql = "INSERT INTO landlord(landlord_name,landlord_email,password_hash,phone_number,account_status) values(%s,%s,%s,%s,%s)"
-        cursor.execute(sql,(landlord_name,landlord_email,password_hash,phone_number,account_status))
+        cursor.execute(sql,(landlord_name,landlord_email,password_hash,phone_number,account_type))
 
         connection.commit()
 
