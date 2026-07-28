@@ -170,14 +170,15 @@ def Register_user() :
 
     # Data for registering users
     data = request.get_json()
-    customer_name = data.get("customer_name")
-    customer_email = data.get("customer_email")
-    customer_phone_number =data.get("customer_phone_number")
-    unit_number = data.get("unit_number") 
-    activity_status = data.get("activity_status")
+    customer_name = data.get("customer_name", "")
+    customer_email = data.get("customer_email", "")
+    customer_phone_number =data.get("customer_phone_number", "")
+    unit_number = data.get("unit_number", "") 
+    activity_status = data.get("activity_status", "")
+    role = data.get("role", "")
 
     # MAKE SURE ALL FIELDS ARE ENTERED
-    if not all([customer_name,customer_email,customer_phone_number,unit_number,activity_status]):
+    if not all([customer_name,customer_email,customer_phone_number,unit_number,activity_status,role]):
         return jsonify({"error":"All fields are required ."}),400
 
     connection, cursor= get_db()
@@ -189,8 +190,8 @@ def Register_user() :
         if cursor.fetchone():
             return jsonify({"error":"Email or Username already exists",
                             "customer_email":customer_email}),409
-        sql = "INSERT INTO customers(landlord_id,customer_name, customer_email,customer_phone_number,unit_number,activity_status) VALUES(%s,%s,%s,%s,%s,%s)"
-        cursor.execute(sql,(landlord_id,customer_name,customer_email,customer_phone_number,unit_number,activity_status))
+        sql = "INSERT INTO customers(landlord_id,customer_name, customer_email,customer_phone_number,unit_number,activity_status,role) VALUES(%s,%s,%s,%s,%s,%s,%s)"
+        cursor.execute(sql,(landlord_id,customer_name,customer_email,customer_phone_number,unit_number,activity_status,role))
         connection.commit()
         return jsonify({"message":"Tenant registered successfully. Verification code sent "})
 
