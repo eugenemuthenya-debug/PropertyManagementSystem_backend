@@ -151,8 +151,8 @@ def signin():
         }),200
     except Exception as e:
         traceback.print_exc()
-        # return jsonify({"error":str(e)}),500
-        return jsonify({"error":"Something went wrong. Please try again."}),500
+        return jsonify({"error":str(e)}),500
+        # return jsonify({"error":"Something went wrong. Please try again."}),500
     finally:
         cursor.close()
         connection.close()
