@@ -68,11 +68,11 @@ def signup():
     landlord_password = data.get("landlord_password", "").strip()
     landlord_email = data.get("landlord_email", "").strip().lower()
     phone_number = data.get("phone_number", "").strip()
-    account_type = data.get("account_type", "").strip()
+    account_status = data.get("account_status", "").strip()
 
 
 # This is to make sure that the user doesn't send to the backend any empty field. All fields must be filled.
-    if not all([landlord_name,landlord_password,landlord_email,phone_number,account_type]):
+    if not all([landlord_name,landlord_password,landlord_email,phone_number,account_status]):
         return jsonify({"error":"All fields are required"}),400
 
     # we hash the password before storing in database using Bcrypt
@@ -93,7 +93,7 @@ def signup():
 
         # if record doesn't exist:
         sql = "INSERT INTO landlord(landlord_name,landlord_email,password_hash,phone_number,account_status) values(%s,%s,%s,%s,%s)"
-        cursor.execute(sql,(landlord_name,landlord_email,password_hash,phone_number,account_type))
+        cursor.execute(sql,(landlord_name,landlord_email,password_hash,phone_number,account_status))
 
         connection.commit()
 
@@ -111,3 +111,94 @@ def signup():
         cursor.close()
         connection.close()
 
+
+#----------Log in-------------(Landlord)[Success]
+@app.route("/api/login", methods=["POST"])
+def signin():
+    data = request.get_json()
+
+   
+
+
+
+    landlord_email= data.get("landlord_email", "").strip()
+    landlord_password = data.get("landlord_password", "").strip()
+
+    # makes sure all fields are required
+    if not landlord_email or not landlord_password:
+        return jsonify({"error":"Email or password  are required"}),400
+
+    connection, cursor = get_db(True)
+    try:
+        cursor.execute("SELECT * FROM landlord WHERE landlord_email= %s", (landlord_email,))
+        landlord_user = cursor.fetchone()
+        # this returns the row that matches the email and stores it in a variable called landlord_user
+
+        if not landlord_user or not bcrypt.check_password_hash(landlord_user["password_hash"],landlord_password):
+            return jsonify({"error":"Invalid credentials"}),401
+
+        # we wanna create our access token but they will be uniquely identified via landlord_id
+        access_token = create_access_token(identity=str(landlord_user["landlord_id"]))
+        return jsonify({
+            "message":"Login successful",
+            "landlord_user":{
+                "landlord_id":landlord_user["landlord_id"],
+                "landlord_name": landlord_user["landlord_name"],
+                "landlord_email":landlord_user["landlord_email"],
+                "phone_number":landlord_user["phone_number"],
+                "access_token":access_token
+            }
+        }),200
+    except Exception as e:
+        traceback.print_exc()
+        # return jsonify({"error":str(e)}),500
+        return jsonify({"error":"Something went wrong. Please try again."}),500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# -----------Registering users------------------
+@app.route("/api/Register_user", methods=["POST"])
+@jwt_required()
+
+def Register_user() :
+
+    # this gets the landlord_id from the access token
+
+    landlord_id= get_jwt_identity()
+
+    # Data for registering users
+    data = request.get_json()
+    customer_name = data.get("customer_name")
+    customer_email = data.get("customer_email")
+    customer_phone_number =data.get("customer_phone_number")
+    unit_number = data.get("unit_number") 
+    activity_status = data.get("activity_status")
+
+    # MAKE SURE ALL FIELDS ARE ENTERED
+    if not all([customer_name,customer_email,customer_phone_number,unit_number,activity_status]):
+        return jsonify({"error":"All fields are required ."}),400
+
+    connection, cursor= get_db()
+
+    # CHECK IF USER ALREADY EXIST
+    try:
+        cursor.execute("SELECT  customer_id FROM customers WHERE customer_email = %s OR customer_name = %s ",
+                       (customer_email,customer_name))
+        if cursor.fetchone():
+            return jsonify({"error":"Email or Username already exists",
+                            "customer_email":customer_email}),409
+        sql = "INSERT INTO customers(landlord_id,customer_name, customer_email,customer_phone_number,unit_number,activity_status) VALUES(%s,%s,%s,%s,%s,%s)"
+        cursor.execute(sql,(landlord_id,customer_name,customer_email,customer_phone_number,unit_number,activity_status))
+        connection.commit()
+        return jsonify({"message":"Tenant registered successfully. Verification code sent "})
+
+    except Exception as e:
+            traceback.print_exc()
+            return jsonify({"error":str(e)}),500
+            # return jsonify({"error":"Something went wrong. Please try again."}),500
+    finally:
+        connection.close()
+        cursor.close()
+        
