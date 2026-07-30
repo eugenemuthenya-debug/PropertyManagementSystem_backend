@@ -101,11 +101,11 @@ def signup():
 
     except Exception as e:
         traceback.print_exc()
-        # return jsonify({"error":str(e)}),500
+        return jsonify({"error":str(e)}),500
         # traceback prints our entire error, where what went wrong and how it got there
-        return jsonify({
-        "error": "Something went wrong. Please try again."
-    }), 500
+    #     return jsonify({
+    #     "error": "Something went wrong. Please try again."
+    # }), 500
 
     finally:
         cursor.close()
